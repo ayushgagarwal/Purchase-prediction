@@ -27,3 +27,5 @@ After rigorous cleaning of the dataset and exhaustive explanatory data analysis,
 You can check out the code we used the Code folder.
 - Multiple Linear Regression: predicting approved conversions
 - Poisson Regression: predicting click through rate
+
+The report gives a comprehensive guide to our thought process while solving the problem at hand!
