@@ -1,0 +1,455 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+Project 
+
+Predicting approved conversions
+
+
+```{r}
+#importing libraries
+library(dplyr)
+library(ggplot2)
+library(car)
+```
+
+
+```{r}
+df = read.csv("dataset.csv",header=TRUE)
+```
+
+```{r}
+head(df)
+```
+
+Checking null values
+
+```{r}
+lapply(df,function(x) { length(which(is.na(x)))})
+```
+
+
+```{r}
+summary(df)
+```
+```{r}
+sp0 = df %>%
+  filter(Spent == 0)
+head(sp0)
+```
+
+```{r}
+ap0 = df %>%
+  filter(Approved_Conversion == 0)
+head(ap0)
+```
+
+
+Initially, we thought this could not be possible. However, it turns out facebook can charge per click or per impression. Therefore, this data is not wrong.
+
+```{r}
+length(unique(df$ad_id))
+```
+
+```{r}
+unique(df$xyz_campaign_id)
+```
+
+```{r}
+df$xyz_campaign_id = as.factor(df$xyz_campaign_id)
+```
+
+```{r}
+length(unique(df$fb_campaign_id))
+```
+
+
+```{r}
+unique(df$age)
+```
+
+```{r}
+unique(df$gender)
+```
+
+```{r}
+unique(df$interest)
+```
+
+Assumption - interests will be in brackets - for example 0-25 could be tech, 26-50 could be sports, etc
+
+```{r}
+df$interest=cut(df$interest,breaks = c(0,25,50,75,100,125),labels = c("0-25","26-50","51-75","76-100","101-125"))
+
+```
+
+```{r}
+head(df$interest)
+```
+
+```{r}
+hist(df$Spent)
+```
+```{r}
+hist(df$Total_Conversion)
+```
+
+```{r}
+hist(df$Approved_Conversion)
+```
+```{r}
+hist(df$Clicks)
+```
+
+```{r}
+hist(df$Impressions)
+```
+
+
+```{r}
+head(df)
+```
+
+
+```{r}
+# Correlation matrix!
+cor(df[c(7,8,9,10,11)])
+```
+
+```{r}
+plot(df$Approved_Conversion~df$Total_Conversion, data=df, col="blue")
+```
+
+
+```{r}
+ggplot(df, aes(x=Clicks,y=Approved_Conversion))+geom_point()+ ggtitle("Scatterplot of Clicks VS Approved_Conversion") +geom_smooth(method="lm", se= FALSE)
+```
+
+```{r}
+ggplot(df, aes(x=Impressions,y=Approved_Conversion))+geom_point()+ ggtitle("Scatterplot of Impressions VS Approved_Conversion") +geom_smooth(method="lm", se= FALSE)
+```
+
+```{r}
+ggplot(df, aes(x=age,y=Approved_Conversion))+geom_point()+ ggtitle("Scatterplot of age VS Approved_Conversion") +geom_smooth(method="lm", se= FALSE)
+
+```
+
+```{r}
+ggplot(df, aes(x=gender,y=Approved_Conversion))+geom_point()+ ggtitle("Scatterplot of gender VS Approved_Conversion") +geom_smooth(method="lm", se= FALSE)
+
+```
+```{r}
+ggplot(df, aes(x=Spent,y=Approved_Conversion))+geom_point()+ ggtitle("Scatterplot of Spent VS Approved_Conversion") +geom_smooth(method="lm", se= FALSE)
+
+```
+
+
+## Predicting variables to play with - xyz_campaign_id, age, gender,interest, Impressions, Clicks, Spent, Total Conversion
+## Response - Approved Conversion
+
+
+
+
+```{r}
+ndf = df[,c(2,4,5,6,7,8,9,10,11)]
+head(ndf)
+```
+
+```{r}
+row.cnt = nrow(ndf)
+
+# Split the data into training and testing sets
+dftest = ndf[(row.cnt-230):row.cnt,]
+dftrain = ndf[1:(row.cnt-231),]
+row.cnt
+```
+```{r}
+library(caTools)
+#training and testing data 0.25 and 0.75
+set.seed(100)
+split = sample.split(ndf, SplitRatio = 0.75)
+dftrain = subset(ndf, split == TRUE)
+dftest = subset(ndf, split == FALSE)
+
+```
+```{r}
+unique(dftrain$interest)
+```
+
+# Full model
+
+```{r}
+model = lm(Approved_Conversion ~., data = dftrain)
+summary(model)
+```
+
+
+```{r}
+vif(model)
+max(10, 1/(1-summary(model)$r.squared))
+```
+
+take out clicks first
+start with the one with not significant given others
+
+# No Clicks 
+
+```{r}
+modelb = lm(Approved_Conversion ~ xyz_campaign_id + age + gender + interest + Impressions + Spent + Total_Conversion, data = dftrain)
+summary(modelb)
+```
+
+```{r}
+vif(modelb)
+```
+
+# No clicks and impressions
+
+```{r}
+modelc = lm(Approved_Conversion ~ xyz_campaign_id + age + gender + interest + Spent + Total_Conversion, data = dftrain)
+summary(modelc)
+vif(modelc)
+```
+
+
+
+```{r}
+resids =rstandard(modelc)
+
+plot(dftrain$Total_Conversion, resids, xlab= "Total_conversion", ylab = "Residuals")
+plot(modelc$fitted.values, resids, xlab="Fitted Values", ylab=" Residuals")
+hist(resids, col="orange")
+qqPlot(resids)
+```
+
+# No clicks and Spent
+
+```{r}
+modeld = lm(Approved_Conversion ~ xyz_campaign_id + age + gender + Impressions + Total_Conversion, data = dftrain)
+summary(modeld)
+vif(modeld)
+```
+
+```{r}
+resids =rstandard(modeld)
+
+plot(dftrain$Total_Conversion, resids, xlab= "Total_conversion", ylab = "Residuals")
+plot(modeld$fitted.values, resids, xlab="Fitted Values", ylab=" Residuals")
+hist(resids, col="orange")
+qqPlot(resids)
+```
+
+# No clicks, impressions and spent
+
+```{r}
+modele = lm(Approved_Conversion ~ xyz_campaign_id + age + gender + Total_Conversion, data = dftrain)
+summary(modele)
+vif(modele)
+```
+
+```{r}
+resids =rstandard(modele)
+
+plot(dftrain$Total_Conversion, resids, xlab= "Total_conversion", ylab = "Residuals")
+plot(modele$fitted.values, resids, xlab="Fitted Values", ylab=" Residuals")
+hist(resids, col="orange")
+qqPlot(resids)
+```
+
+There are problems with the linearity and constant variance assumption.
+
+#cooks for modelc -  No clicks and impressions
+
+```{r}
+cook=cooks.distance(modelc)
+plot(cook)
+row_outlier = (which(cook >0.3,arr.ind=TRUE))
+row_outlier
+```
+
+```{r}
+dftrain2 = dftrain[-c(row_outlier),]
+
+modelca = lm(Approved_Conversion ~ xyz_campaign_id + age + gender + Impressions + Total_Conversion, data = dftrain2)
+summary(modelca)
+vif(modelca)
+```
+The point is not influential.
+
+```{r}
+plot(dftrain$Total_Conversion,dftrain$Approved_Conversion, xlab= "Total Conversion",ylab="Approved Conversion")
+```
+
+# Total vs Approved
+
+```{r}
+modelf = lm(Approved_Conversion ~ Total_Conversion, data = dftrain)
+summary(modelf)
+```
+
+```{r}
+cook=cooks.distance(modelf)
+plot(cook)
+row_outlier = (which(cook >0.6,arr.ind=TRUE))
+row_outlier
+```
+```{r}
+dftrain2 = dftrain[-c(row_outlier),]
+
+modelf = lm(Approved_Conversion ~ Total_Conversion, data = dftrain2)
+summary(modelf)
+```
+
+
+```{r}
+resids =rstandard(modelf)
+plot(dftrain2$Total_Conversion, resids, xlab= "Total_conversion", ylab = "Residuals")
+plot(modelf$fitted.values, resids, xlab="Fitted Values", ylab=" Residuals")
+hist(resids, col="orange")
+qqPlot(resids)
+```
+
+#Forward Stepwise regression
+
+```{r}
+intercept = lm(Approved_Conversion ~1, data = dftrain)
+forward <- step(intercept, direction='forward', scope=formula(model), trace=0)
+modelg = lm(formula = Approved_Conversion ~ Total_Conversion + interest + Clicks + gender, data = dftrain)
+summary(modelg)
+vif(modelg)
+forward
+#forward
+```
+
+```{r}
+cook=cooks.distance(modelg)
+plot(cook)
+row_outlier = (which(cook >0.5,arr.ind=TRUE))
+row_outlier
+```
+
+```{r}
+dftrain2 = dftrain[-c(row_outlier),]
+
+modelg = lm(formula = Approved_Conversion ~ Total_Conversion + interest + Clicks + gender, data = dftrain2)
+summary(modelg)
+```
+
+
+```{r}
+resids =rstandard(modelg)
+plot(dftrain2$Total_Conversion, resids, xlab= "Total_conversion", ylab = "Residuals")
+plot(modelg$fitted.values, resids, xlab="Fitted Values", ylab=" Residuals")
+hist(resids, col="orange")
+qqPlot(resids)
+```
+
+```{r}
+dfnewtrain = dftrain
+dfnewtrain$Approved_Conversion = dfnewtrain$Approved_Conversion + 1
+box_model = lm(Approved_Conversion ~ xyz_campaign_id + age + gender + Impressions + Total_Conversion, data = dfnewtrain)
+bc = boxCox(box_model)
+opt.lambda<-bc$x[which.max(bc$y)]
+bc
+opt.lambda
+```
+# boxcox -0.222
+
+```{r}
+newmodel = lm((Approved_Conversion**-0.222) ~ xyz_campaign_id + age + gender + Impressions + Total_Conversion, data = dfnewtrain)
+summary(newmodel)
+```
+
+```{r}
+resids =rstandard(newmodel)
+plot(dfnewtrain$Total_Conversion, resids, xlab= "Total_conversion", ylab = "Residuals")
+plot(newmodel$fitted.values, resids, xlab="Fitted Values", ylab=" Residuals")
+hist(resids, col="orange")
+qqPlot(resids)
+```
+
+```{r}
+summary(modelc)
+```
+```{r}
+box_model = lm(formula = Approved_Conversion ~ xyz_campaign_id + age + gender + interest + Spent + Total_Conversion, data = dfnewtrain)
+bc = boxCox(box_model)
+opt.lambda<-bc$x[which.max(bc$y)]
+bc
+opt.lambda
+```
+# box cox -0.2626
+
+```{r}
+newmodel2 = lm((Approved_Conversion**-0.26262) ~ xyz_campaign_id + age + gender + interest + Spent + Total_Conversion, data = dfnewtrain)
+summary(newmodel)
+```
+
+```{r}
+resids =rstandard(newmodel2)
+plot(dfnewtrain$Total_Conversion, resids, xlab= "Total_conversion", ylab = "Residuals")
+plot(newmodel2$fitted.values, resids, xlab="Fitted Values", ylab=" Residuals")
+hist(resids, col="orange")
+qqPlot(resids)
+```
+# Approved conversion ** -0.5
+
+```{r}
+newmodel3 = lm((Approved_Conversion**-0.5) ~ xyz_campaign_id + age + gender + interest + Spent + Total_Conversion, data = dfnewtrain)
+summary(newmodel3)
+resids =rstandard(newmodel3)
+plot(dfnewtrain$Total_Conversion, resids, xlab= "Total_conversion", ylab = "Residuals")
+plot(newmodel3$fitted.values, resids, xlab="Fitted Values", ylab=" Residuals")
+hist(resids, col="orange")
+qqPlot(resids)
+```
+
+#log approved conversion
+
+```{r}
+newmodel4 = lm(log(Approved_Conversion) ~ xyz_campaign_id + age + gender + interest + Spent + Total_Conversion, data = dfnewtrain)
+summary(newmodel4)
+resids =rstandard(newmodel4)
+plot(dfnewtrain$Total_Conversion, resids, xlab= "Total_conversion", ylab = "Residuals")
+plot(newmodel4$fitted.values, resids, xlab="Fitted Values", ylab=" Residuals")
+hist(resids, col="orange")
+qqPlot(resids)
+```
+
+
+```{r}
+m = predict(model, dftest, interval="prediction")
+m2 = predict(modelb, dftest, interval="prediction")
+m3 = predict(modelc, dftest, interval="prediction")
+m4 = predict(modelca, dftest, interval="prediction")
+m5 = predict(modeld, dftest, interval="prediction")
+m6 = predict(modele, dftest, interval="prediction")
+m7 = predict(modelf, dftest, interval="prediction")
+m8 = predict(modelg, dftest, interval="prediction")
+dfnew = dftest
+dfnew$Approved_Conversion = log(dfnew$Approved_Conversion)
+m9 = predict(newmodel, dfnew, interval="prediction")
+```
+
+```{r}
+sum((m-dftest$Approved_Conversion)^2)/sum((m-mean(dftest$Approved_Conversion))^2) 
+sum((m2-dftest$Approved_Conversion)^2)/sum((m2-mean(dftest$Approved_Conversion))^2) 
+sum((m3-dftest$Approved_Conversion)^2)/sum((m3-mean(dftest$Approved_Conversion))^2) 
+sum((m4-dftest$Approved_Conversion)^2)/sum((m4-mean(dftest$Approved_Conversion))^2) 
+sum((m5-dftest$Approved_Conversion)^2)/sum((m5-mean(dftest$Approved_Conversion))^2) 
+sum((m6-dftest$Approved_Conversion)^2)/sum((m6-mean(dftest$Approved_Conversion))^2) 
+sum((m7-dftest$Approved_Conversion)^2)/sum((m7-mean(dftest$Approved_Conversion))^2) 
+sum((m8-dftest$Approved_Conversion)^2)/sum((m8-mean(dftest$Approved_Conversion))^2) 
+
+
+#sum((m9-((dftest$Approved_Conversion+1)**-0.2222))^2)/sum((m9-mean(((dftest$Approved_Conversion+1)**-0.2222)))^2) 
+#dfnewtest = dftest
+#dfnewtest$Approved_Conversion = dfnewtest$Approved_Conversion + 1
+```
+
+Fin.
+

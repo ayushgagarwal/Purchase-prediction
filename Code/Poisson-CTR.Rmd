@@ -1,0 +1,157 @@
+---
+title: "ExploratoryAnalysis"
+author: "Camila M. Gonzalez"
+date: "11/22/2021"
+output: html_document
+---
+## Data Import
+```{r}
+data = KAG_conversion_data
+#deleting ids
+data <- data[,-c(1,2,3,10,11)]
+#converting to categories
+data$age <- as.factor(data$age)
+data$gender<- as.factor(data$gender)
+#data$Clicks <- as.factor(data$Clicks)
+
+head(data)
+```
+Converting interest
+
+
+```{r}
+data$interest=cut(data$interest,breaks = c(0,25,50,75,100,125),labels = c("0-25","25-50","50-75","75-100","100-125"))
+
+head(data)
+```
+
+
+
+
+## Outliers? Removal?
+```{r}
+test_model = lm(Total_Conversion~age+gender+interest+Impressions+Clicks+Spent)
+cooks = cooks.distance(model)
+plot(cooks, type = "h", lwd = 3, col = "darkred", ylab = "Cook's Distance", main = "Cook's Distance")
+which(cooks>0.004)
+```
+
+## Continuous Predictor Variables
+```{r}
+par(mfrow = c(2,3))
+plot(interest, Approved_Conversion,,xlab = "interest", ylab = "Approved_Conversion", main = "Interest vs Approved_Conversion")
+plot(Impressions, Approved_Conversion,,xlab = "Impressions", ylab = "Approved_Conversion", main = "Impressions vs Approved_Conversion")
+plot(Spent, Approved_Conversion,,xlab = "Spent", ylab = "Approved_Conversion", main = "Spent vs Approved_Conversion")
+plot(Clicks, Approved_Conversion,,xlab = "Clicks", ylab = "Approved_Conversion", main = "Clicks vs Approved_Conversion")
+```
+## Categorical Predictor Variables
+```{r}
+library(ggplot2)
+par(mfrow = c(2,3))
+age_df <- data.frame(age,Approved_Conversion)
+ggplot(age_df, aes(x = age, y = Approved_Conversion)) + geom_boxplot()
+gender_df <- data.frame(gender,Approved_Conversion)
+ggplot(gender_df, aes(x = gender, y = Approved_Conversion)) + geom_boxplot()
+```
+## Distributions Predictor Variables
+```{r}
+par(mfrow = c(2,3))
+ggplot(age_df, aes(x = age)) + geom_histogram(stat = "count", binwidth = 1, fill = "blue") 
+ggplot(gender_df, aes(x = gender)) + geom_histogram(stat = "count", binwidth = 1, fill = "darkred")
+hist(interest, col = "darkblue")
+hist(Spent, col = "yellow")
+hist(Impressions, col = "darkred")
+hist(Clicks, col = "lightblue")
+```
+---
+### Poisson Regression
+##1. Fitting the Model
+```{r}
+library(caTools)
+#training and testing data 0.25 and 0.75
+set.seed(1)
+split = sample.split(data$Clicks, SplitRatio = 0.75)
+train = subset(data, split == TRUE)
+test = subset(data, split == FALSE)
+#fitting the model
+model1= glm(Clicks ~ age + gender + interest + offset(log(Impressions))+Spent, data = train, family = poisson)
+summary(model1)
+install.packages("jtools")
+library(jtools)
+summ(model1)
+install.packages("ggstance")
+library(ggstance)
+
+plot_coefs(model1)
+
+summ(model1, model.info = FALSE, digits = 5)
+#test for overall regression
+1-pchisq(model1$null.deviance-model1$deviance, model1$df.null-model1$df.residual)
+```
+##2. GOF
+```{r}
+#Residual Analysis
+res = resid(model1, type = "deviance")
+par(mfrow = c(2,2))
+plot(Spent,res,ylab = "std residuals", xlab = "spent")
+qqnorm(res)
+qqline(res, col = "red")
+hist(res)
+```
+
+##3. Complexity Improvements/Variable Selection
+```{r}
+#Stepwise Regression
+# Create minimum model including an intercept
+min.model <-  glm(Clicks~ 1 + offset(log(Impressions)), family = "poisson", data = train)
+full.model <- model1
+# Perform stepwise regression
+step.model <- step(min.model, scope = list(lower = min.model, upper = full.model),
+                  direction = "forward", trace = FALSE)
+summ(step.model, model.info = FALSE, digits = 5)
+summary(step.model)
+#which(summary(step.model)$coeff[,4]>0.05)
+```
+
+```{r}
+#LASSO Regression
+library(glmnet)
+# Set a seed for reproducibility
+set.seed(1)
+
+# Set predictors and response to correct format
+x.train <- model.matrix(Clicks ~ .-Impressions, train)[,-1]
+y.train <- train$Clicks
+
+OFFSET=log(train$Impressions)
+
+# Use cross validation to find optimal lambda
+cv.lasso <- cv.glmnet(x.train, y.train, alpha = 1, family = "poisson", offset = OFFSET)
+
+# Train Lasso and display coefficients with optimal lambda
+lasso.model <- glmnet(x.train, y.train, alpha = 1, family = "poisson", offset = OFFSET)
+coef(lasso.model, cv.lasso$lambda.min)
+```
+
+##4. Metrics of Performance
+```{r}
+test.pred <- predict(model1, test, type = "response")
+test.pred.step <- predict(step.model, test, type = "response")
+#MSPE
+mspe.step = mean((test.pred.step-test$Clicks)^2)
+mspe = mean((test.pred-test$Clicks)^2)
+print(mspe)
+print(mspe.step)
+#MAE
+mae.step = mean(abs(test.pred.step-test$Clicks))
+mae = mean(abs(test.pred-test$Clicks))
+print(mae)
+print(mae.step)
+
+
+#MAPE
+#mape.step = mean(abs(test.pred.step-test$Clicks)/test$Clicks)
+#mape = mean(abs(test.pred-test$Clicks)/test$Clicks)
+#print(mape)
+#print(mape.step)
+```
