@@ -11,22 +11,14 @@ With this project, we wanted to understand what factors influence customers’ s
 Dataset - https://www.kaggle.com/loveall/clicks-conversion-tracking
 
 Predictor Variables-
-
-• age: age of the user exposed to the ad. 
-
-• gender: gender of the user exposed to the ad.
-
-• interest: represents the category to which the user’s interests belong to based on the user’s Facebook’s profile.
-
-• Impressions: represents the number of times the ad was shown to the user. 
-
-• Clicks: represents the number of times the user clicked on the ad shown. 
-
-• Spent: represents the amount paid by Company XYZ to Facebook to show their ad.
-
-• Total Conversion: represents the number of people who researched the product after seeing the ad. 
-
-• Approved Conversion: represents the total number of people that purchased the product after seeing the ad.
+- age: age of the user exposed to the ad. 
+- gender: gender of the user exposed to the ad.
+- interest: represents the category to which the user’s interests belong to based on the user’s Facebook’s profile.
+- Impressions: represents the number of times the ad was shown to the user. 
+- Clicks: represents the number of times the user clicked on the ad shown. 
+- Spent: represents the amount paid by Company XYZ to Facebook to show their ad.
+- Total Conversion: represents the number of people who researched the product after seeing the ad. 
+- Approved Conversion: represents the total number of people that purchased the product after seeing the ad.
 
 With all these variables, we attempted to predict the response variable Approved Conversion and Click Through Rate (Clicks/Impressions * 100)
 
