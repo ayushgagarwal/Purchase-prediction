@@ -2,7 +2,7 @@
 
 Using advertisement campaigns data to predict click through rate and total conversions
 
-Overview
+### Overview
 
 Advertisements in social media have become more popular with the continuous increase in number of users in platforms like Facebook, Instagram, and YouTube. Can we predict whether Abhishek will purchase a product based on whether he clicked on the ad that popped in his Instagram feed?
 
@@ -10,7 +10,7 @@ With this project, we wanted to understand what factors influence customers’ s
 
 Dataset - https://www.kaggle.com/loveall/clicks-conversion-tracking
 
-Predictor Variables-
+#### Predictor Variables-
 - age: age of the user exposed to the ad. 
 - gender: gender of the user exposed to the ad.
 - interest: represents the category to which the user’s interests belong to based on the user’s Facebook’s profile.
